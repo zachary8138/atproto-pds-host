@@ -1,0 +1,19 @@
+Source: atproto-pds-host
+Section: admin
+Priority: optional
+Maintainer: rist138 <zak8138@protonmail.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Homepage: https://launchpad.net/~rist138/+archive/ubuntu/atproto-pds-host
+Rules-Requires-Root: no
+
+Package: atproto-pds-host
+Architecture: all
+Depends: ${misc:Depends}, ca-certificates, curl, ufw, unattended-upgrades, iproute2
+Suggests: docker.io
+Description: Ubuntu helpers for a self-hosted AT Protocol PDS
+ Installs pds-host, a setup utility for hardening SSH/UFW and managing
+ hostname files around Bluesky's official Personal Data Server installer.
+ .
+ This package does not install the PDS container, change firewall policy
+ automatically, or run the upstream installer.

@@ -1,0 +1,135 @@
+#!/bin/bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+set -euo pipefail
+
+SHARE="${PDS_HOST_SHARE:-/usr/share/atproto-pds-host}"
+if [[ ! -d "$SHARE" && -d "$(dirname "$0")/../share/atproto-pds-host" ]]; then
+  SHARE="$(cd "$(dirname "$0")/../share/atproto-pds-host" && pwd)"
+fi
+
+PDS_ENV="${PDS_ENV:-/pds/pds.env}"
+CADDYFILE="${CADDYFILE:-/pds/caddy/etc/caddy/Caddyfile}"
+
+die() { echo "pds-host: $*" >&2; exit 1; }
+need_root() { [[ $EUID -eq 0 ]] || die "run as root"; }
+
+usage() {
+  cat <<'USAGE'
+pds-host — Ubuntu helpers around an official Bluesky PDS (Docker)
+
+  pds-host preflight
+  pds-host harden-ssh
+  pds-host ufw-ssh --from 100.x.x.x [--enable]
+  pds-host apply-hostname OLD.HOST NEW.HOST [--restart]
+  pds-host health [hostname]
+  pds-host show-hostname
+
+Does not install the PDS. Use:
+  https://github.com/bluesky-social/pds
+USAGE
+}
+
+cmd_preflight() {
+  echo "== host =="; uname -a
+  if command -v docker >/dev/null; then docker --version
+  else echo "docker: missing (install before official installer)"
+  fi
+  if [[ -d /pds ]]; then echo "/pds: present"
+  else echo "/pds: missing (ok before first PDS install)"
+  fi
+  if command -v tailscale >/dev/null; then tailscale ip -4
+  else echo "tailscale: not installed (add Tailscale apt repo first)"
+  fi
+  ss -tlnp 2>/dev/null | grep -E ':80 |:443 ' || echo "nothing listening on 80/443 yet"
+}
+
+cmd_harden_ssh() {
+  need_root
+  install -m 644 "$SHARE/sshd/99-atproto-pds-host.conf" \
+    /etc/ssh/sshd_config.d/99-atproto-pds-host.conf
+  sshd -t
+  systemctl reload ssh
+  echo "sshd: keys only, PermitRootLogin prohibit-password"
+}
+
+cmd_ufw_ssh() {
+  need_root
+  local from="" enable=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --from) from="$2"; shift 2 ;;
+      --enable) enable=1; shift ;;
+      *) die "unknown arg $1" ;;
+    esac
+  done
+  [[ -n "$from" ]] || die "ufw-ssh requires --from TAILSCALE_IP"
+  ufw allow 80/tcp
+  ufw allow 443/tcp
+  ufw allow 41641/udp
+  ufw allow proto tcp from "$from" to any port 22
+  echo "UFW: 80/443/41641 world; SSH only from $from"
+  if [[ $enable -eq 1 ]]; then
+    ufw --force enable
+    ufw status verbose
+  else
+    echo "not enabled; pass --enable after you confirm SSH still works"
+  fi
+}
+
+cmd_apply_hostname() {
+  need_root
+  local old="" new="" restart=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --restart) restart=1; shift ;;
+      *)
+        if [[ -z "$old" ]]; then old="$1"
+        elif [[ -z "$new" ]]; then new="$1"
+        else die "unexpected $1"
+        fi
+        shift ;;
+    esac
+  done
+  [[ -n "$old" && -n "$new" ]] || die "usage: apply-hostname OLD.HOST NEW.HOST [--restart]"
+  [[ -f "$PDS_ENV" ]] || die "missing $PDS_ENV"
+  [[ -f "$CADDYFILE" ]] || die "missing $CADDYFILE"
+  grep -q "$old" "$PDS_ENV" "$CADDYFILE" || die "$old not found in pds.env/Caddyfile"
+  local old_esc new_esc
+  old_esc=$(printf '%s' "$old" | sed 's/[.[\*^$]/\\&/g')
+  new_esc=$(printf '%s' "$new" | sed 's/[&|]/\\&/g')
+  sed -i "s|${old_esc}|${new_esc}|g" "$PDS_ENV" "$CADDYFILE"
+  grep -n "PDS_HOSTNAME" "$PDS_ENV" || true
+  grep -F "$new" "$CADDYFILE" || true
+  echo "edit complete; update PLC/handle separately; do not drop old DNS yet"
+  if [[ $restart -eq 1 ]]; then
+    systemctl restart pds
+    sleep 5
+    cmd_health "$new"
+  fi
+}
+
+cmd_health() {
+  local host="${1:-}"
+  if [[ -z "$host" && -f "$PDS_ENV" ]]; then
+    host=$(awk -F= '/^PDS_HOSTNAME=/{print $2}' "$PDS_ENV" | tr -d '"')
+  fi
+  [[ -n "$host" ]] || die "pass a hostname or set PDS_HOSTNAME"
+  curl -4 -fsS --max-time 20 "https://${host}/xrpc/_health"
+  echo
+}
+
+cmd_show_hostname() {
+  [[ -f "$PDS_ENV" ]] || die "missing $PDS_ENV"
+  grep '^PDS_HOSTNAME=' "$PDS_ENV"
+}
+
+case "${1:-}" in
+  ""|-h|--help) usage ;;
+  preflight) shift; cmd_preflight "$@" ;;
+  harden-ssh) shift; cmd_harden_ssh "$@" ;;
+  ufw-ssh) shift; cmd_ufw_ssh "$@" ;;
+  apply-hostname) shift; cmd_apply_hostname "$@" ;;
+  health) shift; cmd_health "$@" ;;
+  show-hostname) shift; cmd_show_hostname "$@" ;;
+  *) die "unknown command $1" ;;
+esac

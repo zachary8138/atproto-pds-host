@@ -1,0 +1,12 @@
+*.deb
+*.dsc
+*.build
+*.buildinfo
+*.changes
+*.tar.xz
+*.tar.gz
+*.upload
+debian/.debhelper/
+debian/files
+debian/*.substvars
+debian/atproto-pds-host/
