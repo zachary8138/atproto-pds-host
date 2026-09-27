@@ -1,3 +1,12 @@
+atproto-pds-host (0.1.2) noble; urgency=medium
+
+  * Restart pds if a /pds backup archive fails.
+  * Refuse backup destinations inside /pds.
+  * Restore through a temporary directory and reject archives that are
+    not a pds/ tree.
+
+ -- rist138 <zak8138@protonmail.com>  Sun, 27 Sep 2026 10:30:00 -0400
+
 atproto-pds-host (0.1.1) noble; urgency=medium
 
   * Add pds-host backup and restore for /pds.

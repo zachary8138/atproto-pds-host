@@ -60,9 +60,15 @@ The PDS needs working mail for invites, confirmations, and PLC/2FA-style flows.
 
 Do not put a browser challenge (for example Anubis) in front of `/xrpc` or WebSockets. Federation is not a browser.
 
+
 ### Backups
 
-Copy `/pds` off-box. It holds repositories, blobs, and rotation keys. Losing it loses the PDS.
+`/pds` holds repositories, blobs, Caddy data, and the PLC rotation key in `pds.env`. Losing it loses the PDS.
+
+```bash
+sudo pds-host backup /var/backups
+sudo pds-host restore /var/backups/pds-YYYYMMDDTHHMMSSZ.tar.gz
+sudo systemctl start pds
 
 ## Suggested order
 

@@ -18,3 +18,7 @@ Some VPS providers block outbound SMTP on 25/465/587. Use a transactional
 mail API on an allowed port. Test sending to your own address first.
 
 Back up /pds off-box. It holds repository data, blobs, and rotation keys.
+
+    sudo pds-host backup /var/backups
+
+Do not write that archive inside /pds. pds-host restore extracts to a temporary directory, refuses an archive that is not a pds/ tree, and does not start the service. Ownership and modes come from the archive.

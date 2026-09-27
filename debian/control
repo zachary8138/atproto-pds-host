@@ -14,6 +14,7 @@ Suggests: docker.io
 Description: Ubuntu helpers for a self-hosted AT Protocol PDS
  Installs pds-host, a setup utility for hardening SSH/UFW and managing
  hostname files around Bluesky's official Personal Data Server installer.
+ It can also archive and restore /pds while the service is stopped.
  .
  This package does not install the PDS container, change firewall policy
  automatically, or run the upstream installer.
