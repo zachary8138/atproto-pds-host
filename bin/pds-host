@@ -21,6 +21,8 @@ pds-host — Ubuntu helpers around an official Bluesky PDS (Docker)
   pds-host harden-ssh
   pds-host ufw-ssh --from 100.x.x.x [--enable]
   pds-host apply-hostname OLD.HOST NEW.HOST [--restart]
+  pds-host backup DEST
+  pds-host restore ARCHIVE
   pds-host health [hostname]
   pds-host show-hostname
 
@@ -108,6 +110,49 @@ cmd_apply_hostname() {
   fi
 }
 
+
+cmd_backup() {
+  need_root
+  local dest="${1:-}"
+  [[ -n "$dest" && $# -eq 1 ]] || die "usage: backup DEST"
+  [[ -d /pds ]] || die "missing /pds"
+  [[ -f /pds/pds.env ]] || die "missing /pds/pds.env"
+  mkdir -p -- "$dest"
+  [[ -d "$dest" ]] || die "DEST is not a directory: $dest"
+  local ts archive
+  ts=$(date -u +%Y%m%dT%H%M%SZ)
+  archive="${dest%/}/pds-${ts}.tar.gz"
+  [[ -e "$archive" ]] && die "refusing to overwrite $archive"
+  echo "stopping pds"
+  systemctl stop pds
+  tar -C / -czf "$archive" pds
+  local rc=$?
+  systemctl start pds
+  [[ $rc -eq 0 ]] || die "tar failed; pds was started again"
+  chown root:root "$archive"
+  chmod 600 "$archive"
+  echo "wrote $archive"
+  tar -tzf "$archive" | grep -E '^(pds/pds.env|pds/account.sqlite)$' \
+    || die "archive is missing pds.env or account.sqlite"
+}
+
+cmd_restore() {
+  need_root
+  local archive="${1:-}"
+  [[ -n "$archive" && $# -eq 1 ]] || die "usage: restore ARCHIVE"
+  [[ -f "$archive" ]] || die "missing archive: $archive"
+  tar -tzf "$archive" | grep -qx 'pds/pds.env' || die "archive has no pds/pds.env"
+  tar -tzf "$archive" | grep -qx 'pds/account.sqlite' || die "archive has no pds/account.sqlite"
+  if [[ -e /pds ]]; then
+    die "/pds already exists; move it aside before restore (not deleted automatically)"
+  fi
+  echo "restoring $archive onto /"
+  tar -C / -xzf "$archive" pds
+  [[ -f /pds/pds.env && -f /pds/account.sqlite ]] || die "restore did not produce /pds"
+  chmod 700 /pds
+  echo "restored /pds; start with: systemctl start pds"
+}
+
 cmd_health() {
   local host="${1:-}"
   if [[ -z "$host" && -f "$PDS_ENV" ]]; then
@@ -129,6 +174,8 @@ case "${1:-}" in
   harden-ssh) shift; cmd_harden_ssh "$@" ;;
   ufw-ssh) shift; cmd_ufw_ssh "$@" ;;
   apply-hostname) shift; cmd_apply_hostname "$@" ;;
+  backup) shift; cmd_backup "$@" ;;
+  restore) shift; cmd_restore "$@" ;;
   health) shift; cmd_health "$@" ;;
   show-hostname) shift; cmd_show_hostname "$@" ;;
   *) die "unknown command $1" ;;

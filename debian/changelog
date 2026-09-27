@@ -1,3 +1,9 @@
+atproto-pds-host (0.1.1) noble; urgency=medium
+
+  * Add pds-host backup and restore for /pds.
+
+ -- rist138 <zak8138@protonmail.com>  Sat, 26 Sep 2026 20:45:00 -0400
+
 atproto-pds-host (0.1.0) noble; urgency=medium
 
   * Initial release.
