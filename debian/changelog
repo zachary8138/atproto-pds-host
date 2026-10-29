@@ -1,3 +1,10 @@
+atproto-pds-host (0.1.3) noble; urgency=medium
+
+  * Restore pds-host command dispatch, health, and show-hostname.
+  * Close the README backup example so the install steps render.
+
+ -- rist138 <zak8138@protonmail.com>  Thu, 29 Oct 2026 18:42:00 -0400
+
 atproto-pds-host (0.1.2) noble; urgency=medium
 
   * Restart pds if a /pds backup archive fails.

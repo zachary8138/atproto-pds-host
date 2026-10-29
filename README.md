@@ -69,6 +69,7 @@ Do not put a browser challenge (for example Anubis) in front of `/xrpc` or WebSo
 sudo pds-host backup /var/backups
 sudo pds-host restore /var/backups/pds-YYYYMMDDTHHMMSSZ.tar.gz
 sudo systemctl start pds
+```
 
 ## Suggested order
 
@@ -87,3 +88,4 @@ Skip step 6 and the PDS can still be fully functional. Skip DNS, 80/443, or mail
 ```bash
 curl -fsSL https://raw.githubusercontent.com/bluesky-social/pds/main/installer.sh -o installer.sh
 sudo bash installer.sh
+```

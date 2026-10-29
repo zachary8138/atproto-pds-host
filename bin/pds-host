@@ -206,3 +206,31 @@ cmd_restore() {
   echo "chmod on /pds does not change those files"
   echo "start with: systemctl start pds"
 }
+
+cmd_health() {
+  local host="${1:-}"
+  if [[ -z "$host" && -f "$PDS_ENV" ]]; then
+    host=$(awk -F= '/^PDS_HOSTNAME=/{print $2}' "$PDS_ENV" | tr -d '"')
+  fi
+  [[ -n "$host" ]] || die "pass a hostname or set PDS_HOSTNAME"
+  curl -4 -fsS --max-time 20 "https://${host}/xrpc/_health"
+  echo
+}
+
+cmd_show_hostname() {
+  [[ -f "$PDS_ENV" ]] || die "missing $PDS_ENV"
+  grep '^PDS_HOSTNAME=' "$PDS_ENV"
+}
+
+case "${1:-}" in
+  ""|-h|--help) usage ;;
+  preflight) shift; cmd_preflight "$@" ;;
+  harden-ssh) shift; cmd_harden_ssh "$@" ;;
+  ufw-ssh) shift; cmd_ufw_ssh "$@" ;;
+  apply-hostname) shift; cmd_apply_hostname "$@" ;;
+  backup) shift; cmd_backup "$@" ;;
+  restore) shift; cmd_restore "$@" ;;
+  health) shift; cmd_health "$@" ;;
+  show-hostname) shift; cmd_show_hostname "$@" ;;
+  *) die "unknown command $1" ;;
+esac
